@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Share</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family: Arial, sans-serif;
+      }
+
+      body {
+        padding: 20px;
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .container {
+        display: flex;
+        flex-direction: column;
+        gap: 20px;
+      }
+
+      .section {
+        display: none;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .active {
+        display: flex;
+      }
+
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        margin-bottom: 10px;
+      }
+
+      input,
+      button {
+        padding: 8px;
+        border-radius: 4px;
+        border: 1px solid #ccc;
+      }
+
+      button {
+        background-color: #007bff;
+        color: white;
+        cursor: pointer;
+      }
+
+      button:hover {
+        background-color: #0056b3;
+      }
+
+      .post {
+        border: 1px solid #ddd;
+        padding: 10px;
+        border-radius: 4px;
+        margin-bottom: 10px;
+      }
+
+      .post img,
+      .post video {
+        max-width: 100%;
+        height: auto;
+        margin: 10px 0;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <!-- Login/Signup Section -->
+      <div id="authSection" class="section active">
+        <div id="signupForm">
+          <h2>Sign Up</h2>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="signupUsername" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="signupPassword" />
+          </div>
+          <button onclick="signup()">Sign Up</button>
+          <p>
+            Already have an account? <a href="#" onclick="showLogin()">Login</a>
+          </p>
+        </div>
+
+        <div id="loginForm" style="display: none">
+          <h2>Login</h2>
+          <div class="form-group">
+            <label>Username</label>
+            <input type="text" id="loginUsername" />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="loginPassword" />
+          </div>
+          <button onclick="login()">Login</button>
+          <p>Need an account? <a href="#" onclick="showSignup()">Sign Up</a></p>
+        </div>
+      </div>
+
+      <!-- Content Section -->
+      <div id="contentSection" class="section">
+        <button onclick="logout()">Logout</button>
+        <h2>Upload Media</h2>
+        <div class="form-group">
+          <input type="file" id="mediaInput" accept="image/*,video/*" />
+          <input type="text" id="captionInput" placeholder="Add a caption" />
+          <button onclick="uploadMedia()">Upload</button>
+        </div>
+        <div id="postsContainer"></div>
+      </div>
+
+      <!-- Account Section -->
+      <div id="accountSection" class="section">
+        <button onclick="showContent()">Back to Content</button>
+        <h2>Your Posts</h2>
+        <div id="userPostsContainer"></div>
+      </div>
+    </div>
+
+    <script>
+      let currentUser = null;
+      const users = JSON.parse(localStorage.getItem("users")) || {};
+      const posts = JSON.parse(localStorage.getItem("posts")) || [];
+
+      function saveData() {
+        localStorage.setItem("users", JSON.stringify(users));
+        localStorage.setItem("posts", JSON.stringify(posts));
+      }
+
+      function showSection(sectionId) {
+        document.querySelectorAll(".section").forEach((section) => {
+          section.classList.remove("active");
+        });
+        document.getElementById(sectionId).classList.add("active");
+      }
+
+      function showLogin() {
+        document.getElementById("signupForm").style.display = "none";
+        document.getElementById("loginForm").style.display = "block";
+      }
+
+      function showSignup() {
+        document.getElementById("loginForm").style.display = "none";
+        document.getElementById("signupForm").style.display = "block";
+      }
+
+      function signup() {
+        const username = document.getElementById("signupUsername").value;
+        const password = document.getElementById("signupPassword").value;
+
+        if (users[username]) {
+          alert("Username already exists");
+          return;
+        }
+
+        users[username] = { password, posts: [] };
+        saveData();
+        alert("Signup successful! Please login.");
+        showLogin();
+      }
+
+      function login() {
+        const username = document.getElementById("loginUsername").value;
+        const password = document.getElementById("loginPassword").value;
+
+        if (users[username] && users[username].password === password) {
+          currentUser = username;
+          showSection("contentSection");
+          displayPosts();
+        } else {
+          alert("Invalid credentials");
+        }
+      }
+
+      function logout() {
+        currentUser = null;
+        showSection("authSection");
+      }
+
+      function uploadMedia() {
+        const fileInput = document.getElementById("mediaInput");
+        const caption = document.getElementById("captionInput").value;
+
+        if (fileInput.files[0]) {
+          const reader = new FileReader();
+          reader.onload = function (e) {
+            const post = {
+              id: Date.now(),
+              username: currentUser,
+              media: e.target.result,
+              type: fileInput.files[0].type.startsWith("image")
+                ? "image"
+                : "video",
+              caption: caption,
+            };
+
+            posts.push(post);
+            saveData();
+            displayPosts();
+
+            fileInput.value = "";
+            document.getElementById("captionInput").value = "";
+          };
+          reader.readAsDataURL(fileInput.files[0]);
+        }
+      }
+
+      function displayPosts() {
+        const container = document.getElementById("postsContainer");
+        container.innerHTML =
+          '<button onclick="showAccount()">My Account</button>';
+
+        posts.forEach((post) => {
+          const postElement = document.createElement("div");
+          postElement.className = "post";
+          postElement.innerHTML = `
+                    <p><strong>${post.username}</strong></p>
+                    ${
+                      post.type === "image"
+                        ? `<img src="${post.media}" alt="Post">`
+                        : `<video src="${post.media}" controls></video>`
+                    }
+                    <p>${post.caption}</p>
+                `;
+          container.appendChild(postElement);
+        });
+      }
+
+      function showAccount() {
+        showSection("accountSection");
+        const container = document.getElementById("userPostsContainer");
+        container.innerHTML = "";
+
+        const userPosts = posts.filter((post) => post.username === currentUser);
+        userPosts.forEach((post) => {
+          const postElement = document.createElement("div");
+          postElement.className = "post";
+          postElement.innerHTML = `
+                    ${
+                      post.type === "image"
+                        ? `<img src="${post.media}" alt="Post">`
+                        : `<video src="${post.media}" controls></video>`
+                    }
+                    <p>${post.caption}</p>
+                    <button onclick="deletePost(${post.id})">Delete</button>
+                `;
+          container.appendChild(postElement);
+        });
+      }
+
+      function showContent() {
+        showSection("contentSection");
+        displayPosts();
+      }
+
+      function deletePost(postId) {
+        const index = posts.findIndex((post) => post.id === postId);
+        if (index !== -1 && posts[index].username === currentUser) {
+          posts.splice(index, 1);
+          saveData();
+          showAccount();
+        }
+      }
+
+      // Initial check
+      if (currentUser) {
+        showSection("contentSection");
+        displayPosts();
+      }
+    </script>
+  </body>
+</html>
